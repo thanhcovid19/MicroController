@@ -38,9 +38,9 @@ typedef enum{
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define COUNTER_BUTTON_GPIO_Port		GPIOA
-#define COUNTER_BUTTON_Pin				GPIO_PIN_3
+#define COUNTER_BUTTON_Pin				GPIO_PIN_1
 #define RESET_BUTTON_GPIO_Port 			GPIOA
-#define RESET_BUTTON_Pin				GPIO_PIN_7
+#define RESET_BUTTON_Pin				GPIO_PIN_2
 #define LED_GPIO_Port					GPIOA
 #define LED_Pin							GPIO_PIN_5
 /* USER CODE END PD */
@@ -68,7 +68,7 @@ int reset_button_pressed = 0;
 int countUp_flag = 0;
 int counterA = 0;
 int counterB = 0;
-int counter_delay = 10;
+int counter_delay = 5;
 BUTTON_STATE button_state = COUNTER;
 /* USER CODE END PV */
 
@@ -101,13 +101,22 @@ void display_counterValue(){
 		counterA = 0;
 		counterB++;
 	}
+	counterB++;
+	if(counterB > 9){
+		counterB = 0;
+	}
 }
 void buttonStateMachine(){
 	switch(button_state){
 		case COUNTER:
 		{
 			if(counter_button_pressed){
+//				if(counter_delay <= 0){
+//
+//					counter_delay = 7;
+//				}
 				display_counterValue();
+				counter_button_pressed = 0;
 			}
 			else{
 				if(reset_button_pressed){
@@ -118,9 +127,13 @@ void buttonStateMachine(){
 		}
 		case RESET_COUNTER:
 		{
-			reset_value();
-			if(counter_button_pressed){
-				button_state = COUNTER;
+			if(reset_button_pressed){
+				reset_value();
+			}
+			else{
+				if(counter_button_pressed){
+					button_state = COUNTER;
+				}
 			}
 			break;
 		}
@@ -203,18 +216,21 @@ void readButton(){
 	firstRead_resetButton = secondRead_resetButton;
 	secondRead_resetButton = HAL_GPIO_ReadPin(RESET_BUTTON_GPIO_Port, RESET_BUTTON_Pin);
 
-	if(firstRead_counterButton == secondRead_counterButton){
-		if(secondRead_counterButton == 0){
-			counter_delay--;
-			if(counter_delay <= 0){
-				counter_button_pressed = 1;
-			}
-		}
+	if(firstRead_counterButton == 0 && secondRead_counterButton == 1){
+//		if(secondRead_counterButton == 0){
+//			counter_delay--;
+//			if(counter_delay <= 0){
+//				counter_button_pressed = 1;
+//			}
+//			counter_button_pressed = 1;
+//			counter_delay--;
+//		}
+		counter_button_pressed = 1;
 	}
-	else{
-		counter_button_pressed = 0;
-		counter_delay = 10;
-	}
+//	else{
+//		counter_button_pressed = 0;
+//		counter_delay = 10;
+//	}
 
 	if(firstRead_resetButton == secondRead_resetButton){
 		if(secondRead_resetButton == 0)
@@ -366,7 +382,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SE2_0_Pin|SE2_1_Pin|SE2_2_Pin|SE2_3_Pin
+                          |SE2_4_Pin|SE2_5_Pin|SE2_6_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SE1_0_Pin|SE1_1_Pin|SE1_2_Pin|SE1_3_Pin
@@ -375,15 +392,17 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : COUNTER_BUTTON_Pin RESET_BUTTON_Pin */
   GPIO_InitStruct.Pin = COUNTER_BUTTON_Pin|RESET_BUTTON_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LED_Pin */
-  GPIO_InitStruct.Pin = LED_Pin;
+  /*Configure GPIO pins : SE2_0_Pin SE2_1_Pin SE2_2_Pin SE2_3_Pin
+                           SE2_4_Pin SE2_5_Pin SE2_6_Pin */
+  GPIO_InitStruct.Pin = SE2_0_Pin|SE2_1_Pin|SE2_2_Pin|SE2_3_Pin
+                          |SE2_4_Pin|SE2_5_Pin|SE2_6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SE1_0_Pin SE1_1_Pin SE1_2_Pin SE1_3_Pin
                            SE1_4_Pin SE1_5_Pin SE1_6_Pin */
