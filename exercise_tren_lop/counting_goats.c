@@ -33,6 +33,11 @@ typedef enum{
 	COUNTER,
 	RESET_COUNTER
 }BUTTON_STATE;
+
+typedef enum{
+	FIRST_LED_ON,
+	SECOND_LED_ON
+}SEVEN_SEGS_LED_STATE;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -69,7 +74,11 @@ int countUp_flag = 0;
 int counterA = 0;
 int counterB = 0;
 int counter_delay = 5;
+int time_scan = 3;
+int n_scan = 1;
+int waitting_time = 0;
 BUTTON_STATE button_state = COUNTER;
+SEVEN_SEGS_LED_STATE sevenSeg_state = FIRST_LED_ON;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,32 +87,55 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 void readButton();
-void display7SEG_B(int num);
+void display7SEG(int num);
 void display7SEG_A(int num);
 void buttonStateMachine();
 void display_counterValue();
 void reset_value();
+void increase_ledCounter();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void reset_value(){
-	counterA = 0;
-	counterB = 0;
-	display7SEG_A(counterA);
-	display7SEG_B(counterB);
-}
-void display_counterValue(){
-	display7SEG_A(counterA);
-	display7SEG_B(counterB);
+
+void increase_ledCounter(){
 	counterA++;
 	if(counterA > 9){
 		counterA = 0;
 		counterB++;
+		if(counterB > 9){
+			counterB = 0;
+		}
 	}
-	counterB++;
-	if(counterB > 9){
-		counterB = 0;
+}
+
+void reset_value(){
+	counterA = 0;
+	counterB = 0;
+	display_counterValue();
+}
+void display_counterValue(){
+	time_scan--;
+	if(time_scan <= 0){
+		switch(sevenSeg_state){
+			case FIRST_LED_ON:
+			{
+				HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, RESET);
+				HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, SET);
+				display7SEG(counterA);
+				sevenSeg_state = SECOND_LED_ON;
+				break;
+			}
+			case SECOND_LED_ON:
+			{
+				HAL_GPIO_WritePin(EN0_GPIO_Port, EN0_Pin, SET);
+				HAL_GPIO_WritePin(EN1_GPIO_Port, EN1_Pin, RESET);
+				display7SEG(counterB);
+				sevenSeg_state = FIRST_LED_ON;
+				break;
+			}
+		}
+		time_scan = 3;
 	}
 }
 void buttonStateMachine(){
@@ -111,17 +143,11 @@ void buttonStateMachine(){
 		case COUNTER:
 		{
 			if(counter_button_pressed){
-//				if(counter_delay <= 0){
-//
-//					counter_delay = 7;
-//				}
-				display_counterValue();
+				increase_ledCounter();
 				counter_button_pressed = 0;
 			}
-			else{
-				if(reset_button_pressed){
-					button_state = RESET_COUNTER;
-				}
+			if(reset_button_pressed){
+				button_state = RESET_COUNTER;
 			}
 			break;
 		}
@@ -175,7 +201,7 @@ void display7SEG_A(int num){
 	}
 }
 
-void display7SEG_B(int num){
+void display7SEG(int num){
 	switch(num){
 	case 0:
 		GPIOB->ODR = 0xc0; //Displaying 0
@@ -217,20 +243,8 @@ void readButton(){
 	secondRead_resetButton = HAL_GPIO_ReadPin(RESET_BUTTON_GPIO_Port, RESET_BUTTON_Pin);
 
 	if(firstRead_counterButton == 0 && secondRead_counterButton == 1){
-//		if(secondRead_counterButton == 0){
-//			counter_delay--;
-//			if(counter_delay <= 0){
-//				counter_button_pressed = 1;
-//			}
-//			counter_button_pressed = 1;
-//			counter_delay--;
-//		}
 		counter_button_pressed = 1;
 	}
-//	else{
-//		counter_button_pressed = 0;
-//		counter_delay = 10;
-//	}
 
 	if(firstRead_resetButton == secondRead_resetButton){
 		if(secondRead_resetButton == 0)
@@ -239,6 +253,8 @@ void readButton(){
 	else{
 		reset_button_pressed = 0;
 	}
+
+	display_counterValue();
 }
 /* USER CODE END 0 */
 
@@ -387,7 +403,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SE1_0_Pin|SE1_1_Pin|SE1_2_Pin|SE1_3_Pin
-                          |SE1_4_Pin|SE1_5_Pin|SE1_6_Pin, GPIO_PIN_SET);
+                          |SE1_4_Pin|SE1_5_Pin|SE1_6_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, EN0_Pin|EN1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : COUNTER_BUTTON_Pin RESET_BUTTON_Pin */
   GPIO_InitStruct.Pin = COUNTER_BUTTON_Pin|RESET_BUTTON_Pin;
@@ -396,9 +415,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SE2_0_Pin SE2_1_Pin SE2_2_Pin SE2_3_Pin
-                           SE2_4_Pin SE2_5_Pin SE2_6_Pin */
+                           SE2_4_Pin SE2_5_Pin SE2_6_Pin EN0_Pin
+                           EN1_Pin */
   GPIO_InitStruct.Pin = SE2_0_Pin|SE2_1_Pin|SE2_2_Pin|SE2_3_Pin
-                          |SE2_4_Pin|SE2_5_Pin|SE2_6_Pin;
+                          |SE2_4_Pin|SE2_5_Pin|SE2_6_Pin|EN0_Pin
+                          |EN1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
